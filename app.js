@@ -22,7 +22,7 @@ function estado() {
 function grava(s) { try { localStorage.setItem(CHAVE, JSON.stringify(s)); } catch (e) {} }
 
 if (new URLSearchParams(location.search).has('reset')) {
-  try { localStorage.removeItem(CHAVE); } catch (e) {}
+  try { localStorage.removeItem(CHAVE); localStorage.removeItem('lumora.rascunho'); } catch (e) {}
   history.replaceState(null, '', location.pathname);
 }
 
@@ -64,6 +64,34 @@ async function sha256(t) {
   return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
 }
 
+// O navegador automatizado pode recarregar a página entre uma ação e outra (preencher, clicar).
+// Por isso o que já foi digitado fica guardado como rascunho e volta quando a página recarrega.
+// Da senha, só o hash e o tamanho.
+const RASCUNHO = 'lumora.rascunho';
+function lerRascunho() { try { return JSON.parse(localStorage.getItem(RASCUNHO)) || {}; } catch (e) { return {}; } }
+function gravarRascunho(r) { try { localStorage.setItem(RASCUNHO, JSON.stringify(r)); } catch (e) {} }
+function limparRascunho(form) { const r = lerRascunho(); delete r[form.id]; gravarRascunho(r); }
+function rascunho(form) {
+  const f = lerRascunho()[form.id] || {};
+  for (const el of form.elements) {
+    if (!el.name) continue;
+    if (el.type === 'radio') el.checked = f[el.name] === el.value;
+    else if (el.type === 'password') { if (f[el.name + ':n']) el.value = el.dataset.restaurada = '•'.repeat(f[el.name + ':n']); }
+    else if (f[el.name] != null) el.value = f[el.name];
+  }
+  const guarda = async ev => {
+    const el = ev.target; if (!el.name || el.type === 'submit') return;
+    const v = el.type === 'password' ? { [el.name + ':sha256']: await sha256(el.value), [el.name + ':n']: el.value.length } : { [el.name]: el.value };
+    const r = lerRascunho(); r[form.id] = Object.assign(r[form.id] || {}, v); gravarRascunho(r);
+  };
+  form.addEventListener('input', guarda); form.addEventListener('change', guarda);
+}
+// hash da senha digitada, ou o do rascunho se o campo ainda é o que voltou da recarga
+async function hashSenha(form, el) {
+  const h = (lerRascunho()[form.id] || {})[el.name + ':sha256'];
+  return el.dataset.restaurada && el.value === el.dataset.restaurada && h ? h : sha256(el.value);
+}
+
 // número estável para a mesma solicitação (o ensaio e a gravação mostram o mesmo)
 function numero(base) {
   let h = 2166136261;
@@ -76,7 +104,7 @@ function fmtData(dt) { return dt.toLocaleDateString('pt-BR'); }
 function emDias(n) { const d = new Date(); d.setDate(d.getDate() + n); return d; }
 
 function reiniciar() {
-  try { localStorage.removeItem(CHAVE); } catch (e) {}
+  try { localStorage.removeItem(CHAVE); localStorage.removeItem(RASCUNHO); } catch (e) {}
   location.href = 'index.html';
 }
 
