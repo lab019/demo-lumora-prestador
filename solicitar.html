@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Solicitar autorização · Lumora Saúde</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%230b6e63'/%3E%3Cpath d='M8 20a8 8 0 0 1 16 0' stroke='%23fff' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<script src="app.js"></script>
+<script>if (!estado().sessao) location.replace('index.html');</script>
+</head>
+<body>
+<header class="topo">
+  <div class="marca">
+    <svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="#fff"/><path d="M8 20a8 8 0 0 1 16 0" stroke="#0b6e63" stroke-width="3" fill="none" stroke-linecap="round"/><circle cx="16" cy="11" r="2.4" fill="#14a38e"/></svg>
+    <strong>Lumora Saúde</strong><span>Portal do Prestador</span>
+  </div>
+  <div class="conta"><span>Clínica Equilíbrio · prestador 40217</span><button type="button" onclick="sair()">Sair</button></div>
+</header>
+<main>
+  <h1>Solicitar autorização</h1>
+  <p class="sub">Fisioterapia e terapias. Até 10 sessões por pedido sem laudo médico.</p>
+  <div class="grade">
+    <form id="form-pedido" class="cartao" novalidate>
+      <div class="campo">
+        <label for="carteirinha">Número da carteirinha</label>
+        <input id="carteirinha" name="carteirinha" inputmode="numeric" autocomplete="off" placeholder="0000 0000 0000 00">
+      </div>
+      <fieldset class="campo opcoes">
+        <legend>Procedimento</legend>
+        <label><input type="radio" name="procedimento" value="Fisioterapia ortopédica"> Fisioterapia ortopédica</label>
+        <label><input type="radio" name="procedimento" value="Fisioterapia neurológica"> Fisioterapia neurológica</label>
+        <label><input type="radio" name="procedimento" value="Fisioterapia respiratória"> Fisioterapia respiratória</label>
+        <label><input type="radio" name="procedimento" value="RPG — reeducação postural global"> RPG — reeducação postural global</label>
+        <label><input type="radio" name="procedimento" value="Pilates clínico"> Pilates clínico</label>
+      </fieldset>
+      <div class="campo" style="max-width:200px">
+        <label for="sessoes">Quantidade de sessões</label>
+        <input id="sessoes" name="sessoes" type="number" min="1" max="40">
+      </div>
+      <div id="erro" class="erro-msg" role="alert"></div>
+      <button class="primario" type="submit">Enviar solicitação</button>
+    </form>
+    <section id="resultado" class="resultado" role="status" aria-live="polite" aria-label="Resultado da solicitação" hidden></section>
+  </div>
+  <section class="historico cartao">
+    <h2>Solicitações de hoje</h2>
+    <div id="historico"></div>
+  </section>
+</main>
+<footer class="rodape">Ambiente de demonstração · sistema e dados fictícios · <button type="button" onclick="reiniciar()">Reiniciar demonstração</button></footer>
+<script>
+  const $ = id => document.getElementById(id);
+  function desenhaHistorico() {
+    const ps = estado().pedidos;
+    if (!ps.length) { $('historico').innerHTML = '<p class="vazio">Nenhuma solicitação enviada hoje.</p>'; return; }
+    $('historico').innerHTML = '<table><thead><tr><th>Hora</th><th>Beneficiário</th><th>Procedimento</th><th>Sessões</th><th>Situação</th><th>Número</th></tr></thead><tbody>' +
+      ps.slice().reverse().map(p => `<tr><td>${p.hora}</td><td>${p.beneficiario}</td><td>${p.procedimento}</td><td>${p.sessoes}</td>` +
+        `<td><span class="selo ${p.tipo}">${p.tipo === 'ok' ? 'Autorizada' : 'Pendente: laudo'}</span></td>` +
+        `<td>${p.autorizacao || p.protocolo}</td></tr>`).join('') + '</tbody></table>';
+  }
+  function mostra(p) {
+    const r = $('resultado'); r.hidden = false; r.className = 'resultado ' + p.tipo;
+    if (p.tipo === 'falha') { r.innerHTML = `<p class="estado">Não foi possível enviar</p><p>${p.motivo}</p>`; return; }
+    const linhas = `<dl class="dados"><dt>Beneficiário</dt><dd>${p.beneficiario}</dd><dt>Carteirinha</dt><dd>${p.carteirinha}</dd>` +
+      `<dt>Procedimento</dt><dd>${p.procedimento}</dd><dt>Sessões</dt><dd>${p.sessoes}</dd>`;
+    if (p.tipo === 'ok') {
+      r.innerHTML = `<p class="estado">Autorizada</p><div>Número da autorização</div><div class="numero">${p.autorizacao}</div>` +
+        linhas + `<dt>Validade</dt><dd>até ${p.validade}</dd></dl>`;
+    } else {
+      r.innerHTML = `<p class="estado">Pendente: laudo médico obrigatório</p>` +
+        `<p>Pedidos com mais de 10 sessões precisam de laudo médico assinado. Envie o laudo em até 5 dias úteis para a análise seguir.</p>` +
+        `<div>Protocolo</div><div class="numero">${p.protocolo}</div>` + linhas + `</dl>`;
+    }
+  }
+  $('form-pedido').addEventListener('submit', ev => {
+    ev.preventDefault(); $('erro').textContent = '';
+    const proc = (document.querySelector('input[name=procedimento]:checked') || {}).value;
+    if (!proc) { $('erro').textContent = 'Selecione o procedimento.'; return; }
+    const p = solicitar($('carteirinha').value, proc, $('sessoes').value);
+    mostra(p); desenhaHistorico();
+    if (p.tipo !== 'falha') ev.target.reset();
+  });
+  desenhaHistorico();
+</script>
+</body>
+</html>
