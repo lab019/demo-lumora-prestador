@@ -35,21 +35,25 @@
     </form>
   </div>
 </main>
-<footer class="rodape">Ambiente de demonstração · sistema e dados fictícios · v2 · <button type="button" onclick="reiniciar()">Reiniciar demonstração</button></footer>
-<script src="app.js?v=2"></script>
+<footer class="rodape">Ambiente de demonstração · sistema e dados fictícios · v3 · <button type="button" onclick="reiniciar()">Reiniciar demonstração</button></footer>
+<script src="app.js?v=3"></script>
 <script>
   if (estado().sessao) location.replace('solicitar.html');
-  document.getElementById('form-login').addEventListener('submit', async ev => {
+  const form = document.getElementById('form-login'), erro = document.getElementById('erro');
+  rascunho(form);
+  // o último erro de login também sobrevive à recarga (por 10 minutos)
+  const ultimo = estado().erroLogin;
+  if (ultimo && Date.now() - ultimo.quando < 600000) erro.textContent = ultimo.texto;
+  function falha(texto) { erro.textContent = texto; const s = estado(); s.erroLogin = { texto, quando: Date.now() }; grava(s); }
+  form.addEventListener('submit', async ev => {
     ev.preventDefault();
     const u = document.getElementById('usuario').value.trim().toLowerCase();
     let h = '';
-    try { h = await sha256(document.getElementById('senha').value); }
-    catch (e) { document.getElementById('erro').textContent = 'Não foi possível verificar a senha neste navegador.'; return; }
-    if (u !== USUARIO || h !== SENHA_SHA256) {
-      document.getElementById('erro').textContent = 'Usuário ou senha inválidos.';
-      return;
-    }
-    const s = estado(); s.sessao = { usuario: u, desde: new Date().toISOString() }; grava(s);
+    try { h = await hashSenha(form, document.getElementById('senha')); }
+    catch (e) { falha('Não foi possível verificar a senha neste navegador.'); return; }
+    if (u !== USUARIO || h !== SENHA_SHA256) { falha('Usuário ou senha inválidos.'); return; }
+    const s = estado(); s.sessao = { usuario: u, desde: new Date().toISOString() }; delete s.erroLogin; grava(s);
+    limparRascunho(form);
     location.href = 'solicitar.html';
   });
 </script>
