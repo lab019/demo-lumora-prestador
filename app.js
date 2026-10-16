@@ -1,4 +1,8 @@
 // Lumora Saúde — portal do prestador FICTÍCIO, só para demonstração. Estado no localStorage.
+// Erro de script aparece na tela (quem opera a demo por automação só vê o que está na página).
+function mostraErro(m) { const e = document.getElementById('erro'); if (e) e.textContent = 'Erro na página: ' + m; }
+window.addEventListener('error', ev => mostraErro(ev.message));
+window.addEventListener('unhandledrejection', ev => mostraErro((ev.reason && ev.reason.message) || String(ev.reason)));
 const CHAVE = 'lumora.v1';
 const USUARIO = 'clinica.equilibrio';
 const SENHA_SHA256 = 'f2c5fe6e1e765480e090a4aee8df24e8f20634f016389cff3a1b36a2bd460048';
