@@ -22,7 +22,40 @@ if (new URLSearchParams(location.search).has('reset')) {
   history.replaceState(null, '', location.pathname);
 }
 
+// SHA-256 em JS puro: o Web Crypto só existe em contexto seguro, e nem todo navegador automatizado tem.
+function sha256Puro(t) {
+  const K = [], H = [];
+  const frac = x => ((x - Math.floor(x)) * 4294967296) >>> 0;
+  for (let n = 2, c = 0; c < 64; n++) {
+    let primo = true;
+    for (let d = 2; d * d <= n; d++) if (n % d === 0) { primo = false; break; }
+    if (!primo) continue;
+    if (c < 8) H[c] = frac(Math.sqrt(n));
+    K[c++] = frac(Math.cbrt(n));
+  }
+  const b = [...new TextEncoder().encode(t)], bits = b.length * 8;
+  b.push(0x80); while (b.length % 64 !== 56) b.push(0);
+  for (let i = 7; i >= 0; i--) b.push(i > 3 ? 0 : (bits >>> (i * 8)) & 255);
+  const r = (x, n) => (x >>> n) | (x << (32 - n)), W = new Array(64);
+  for (let o = 0; o < b.length; o += 64) {
+    for (let i = 0; i < 16; i++) W[i] = (b[o + 4 * i] << 24) | (b[o + 4 * i + 1] << 16) | (b[o + 4 * i + 2] << 8) | b[o + 4 * i + 3];
+    for (let i = 16; i < 64; i++) {
+      const s0 = r(W[i - 15], 7) ^ r(W[i - 15], 18) ^ (W[i - 15] >>> 3), s1 = r(W[i - 2], 17) ^ r(W[i - 2], 19) ^ (W[i - 2] >>> 10);
+      W[i] = (W[i - 16] + s0 + W[i - 7] + s1) | 0;
+    }
+    let [a, bb, c, d, e, f, g, h] = H;
+    for (let i = 0; i < 64; i++) {
+      const t1 = (h + (r(e, 6) ^ r(e, 11) ^ r(e, 25)) + ((e & f) ^ (~e & g)) + K[i] + W[i]) | 0;
+      const t2 = ((r(a, 2) ^ r(a, 13) ^ r(a, 22)) + ((a & bb) ^ (a & c) ^ (bb & c))) | 0;
+      h = g; g = f; f = e; e = (d + t1) | 0; d = c; c = bb; bb = a; a = (t1 + t2) | 0;
+    }
+    [a, bb, c, d, e, f, g, h].forEach((v, i) => { H[i] = (H[i] + v) | 0; });
+  }
+  return H.map(v => (v >>> 0).toString(16).padStart(8, '0')).join('');
+}
+
 async function sha256(t) {
+  if (!(window.crypto && crypto.subtle)) return sha256Puro(t);
   const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t));
   return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
 }
