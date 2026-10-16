@@ -100,7 +100,7 @@ function numero(base) {
 }
 const digitos = t => (t || '').replace(/\D/g, '');
 const fmtCart = d => d.replace(/^(\d{4})(\d{4})(\d{4})(\d{2})$/, '$1 $2 $3 $4');
-function fmtData(dt) { return dt.toLocaleDateString('pt-BR'); }
+function fmtData(dt) { return dt.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }); }
 function emDias(n) { const d = new Date(); d.setDate(d.getDate() + n); return d; }
 
 function reiniciar() {
@@ -121,7 +121,7 @@ function solicitar(cart, procedimento, sessoes) {
   const base = `${d}|${procedimento}|${n}`;
   const p = {
     carteirinha: fmtCart(d), beneficiario: b.nome, plano: b.plano, procedimento, sessoes: n,
-    hora: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+    hora: new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' }),
   };
   if (n > LIMITE_SEM_LAUDO) {
     Object.assign(p, { tipo: 'pendente', situacao: 'Pendente — laudo médico obrigatório', protocolo: 'P-' + numero(base) });
